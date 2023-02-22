@@ -40,7 +40,7 @@ class ViewController: UIViewController {
         let stepper = UIStepper()
         stepper.minimumValue = 1
         stepper.maximumValue = 5
-        stepper.value = 4
+        stepper.value = 2
         stepper.addTarget(self, action: #selector(updateHeightRatio(_:)), for: .valueChanged)
         return stepper
     }()

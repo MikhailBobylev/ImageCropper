@@ -21,13 +21,13 @@ class Grid: UIView {
         }
     }
 
-    public var lineColor: UIColor = UIColor(white: 1, alpha: 0.7) { //UIColor(white: 1, alpha: 0.7)  UIColor(ciColor: .red)
+    public var lineColor: UIColor = UIColor(ciColor: .red) { //UIColor(white: 1, alpha: 0.7)  UIColor(ciColor: .red)
         didSet {
             setNeedsDisplay()
         }
     }
 
-    public var lineWidth: CGFloat = 1.0 / UIScreen.main.scale {
+    public var lineWidth: CGFloat = 10.0 / UIScreen.main.scale {
         didSet {
             setNeedsDisplay()
         }

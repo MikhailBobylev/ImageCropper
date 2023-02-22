@@ -14,7 +14,7 @@ class ImageScrollView: UIScrollView, UIScrollViewDelegate {
             updateCropperAspectRatioGrid()
         }
     }
-    var aspectHeight: CGFloat = 4 {
+    var aspectHeight: CGFloat = 2 {
         didSet {
             updateCropperAspectRatioGrid()
         }
@@ -32,13 +32,15 @@ class ImageScrollView: UIScrollView, UIScrollViewDelegate {
     var piece = 0.0
     private var spaceX = 0.0
     private var spaceY = 0.0
+    private var originImageW = 0.0
+    private var originImageH = 0.0
     
     override init(frame: CGRect) {
         super.init(frame: frame)
         delegate = self
         showsVerticalScrollIndicator = false
         showsHorizontalScrollIndicator = false
-        bounces = false
+        //bounces = false
         backgroundColor = .gray
     }
     
@@ -62,6 +64,8 @@ class ImageScrollView: UIScrollView, UIScrollViewDelegate {
     
     func configurateFor(imageSize: CGSize) {
         contentSize = imageSize
+        originImageW = imageSize.width
+        originImageH = imageSize.height
         setCurretMaxMinZoomScale()
         zoomScale = minimumZoomScale
     }
@@ -76,6 +80,8 @@ class ImageScrollView: UIScrollView, UIScrollViewDelegate {
         spaceX = bounds.width - width
         spaceY = bounds.height - height
         
+        setCurretMaxMinZoomScale()
+        zoomScale = minimumZoomScale
         updateGrid()
     }
     
@@ -94,38 +100,53 @@ class ImageScrollView: UIScrollView, UIScrollViewDelegate {
         var x: CGFloat = 0
         var y: CGFloat = 0
         
-        print("\(contentWidth) > \(bounds.width + spaceX)")
-        if contentWidth > bounds.width + spaceX && contentHeight > bounds.height {
+        if contentWidth.rounded(.toNearestOrAwayFromZero) >= bounds.width && contentHeight.rounded(.toNearestOrAwayFromZero) >= bounds.height {
             width = aspectWidth * piece
             spaceToXCenter = (bounds.width - width) / 2
             x = contentOffset.x + spaceToXCenter
-            
-            if contentOffset.x + bounds.width >= contentWidth - spaceToXCenter {
-                x += (contentOffset.x + bounds.width) - (contentWidth - spaceToXCenter)
-                spaceToXCenter += (contentOffset.x + bounds.width) - (contentWidth - spaceToXCenter)
-            } else if contentOffset.x <= spaceToXCenter {
-                x -= spaceToXCenter - contentOffset.x
-                spaceToXCenter -= spaceToXCenter - contentOffset.x
+
+            if contentWidth.rounded(.toNearestOrAwayFromZero) > bounds.width + spaceX {
+                if contentOffset.x + bounds.width >= contentWidth - spaceToXCenter {
+                    x += (contentOffset.x + bounds.width) - (contentWidth - spaceToXCenter)
+                    spaceToXCenter += (contentOffset.x + bounds.width) - (contentWidth - spaceToXCenter)
+                } else if contentOffset.x <= spaceToXCenter {
+                    x -= spaceToXCenter - contentOffset.x
+                    spaceToXCenter -= spaceToXCenter - contentOffset.x
+                }
+            } else if contentWidth.rounded(.toNearestOrAwayFromZero) > bounds.width {
+                if contentOffset.x == 0 {
+                    x = contentOffset.x
+                } else if contentOffset.x + bounds.width + 0.5 >= contentWidth.rounded(.toNearestOrAwayFromZero) {
+                    x += spaceToXCenter
+                }
             }
         } else {
-            x = max((bounds.width - contentSize.width) * 0.5, 0) + contentOffset.x
+            x = max((bounds.width - contentSize.width) * 0.5, 0) //+ contentOffset.x
             spaceToXCenter = 0
         }
         
-        if contentHeight > bounds.height + spaceY && contentWidth > bounds.width {
+        if contentHeight.rounded(.toNearestOrAwayFromZero) >= bounds.height && contentWidth.rounded(.toNearestOrAwayFromZero) >= bounds.width {
             height = aspectHeight * piece
             spaceToYCenter = (bounds.height - height) / 2
             y = contentOffset.y + spaceToYCenter
-            
-            if contentOffset.y + bounds.height >= contentHeight - spaceToYCenter {
-                y += (contentOffset.y + bounds.height) - (contentHeight - spaceToYCenter)
-                spaceToYCenter += (contentOffset.y + bounds.height) - (contentHeight - spaceToYCenter)
-            } else if contentOffset.y <= spaceToYCenter {
-                y -= spaceToYCenter - contentOffset.y
-                spaceToYCenter -= spaceToYCenter - contentOffset.y
+
+            if contentHeight.rounded(.toNearestOrAwayFromZero) > bounds.height + spaceY {
+                if contentOffset.y + bounds.height >= contentHeight - spaceToYCenter {
+                    y += (contentOffset.y + bounds.height) - (contentHeight - spaceToYCenter)
+                    spaceToYCenter += (contentOffset.y + bounds.height) - (contentHeight - spaceToYCenter)
+                } else if contentOffset.y <= spaceToYCenter {
+                    y -= spaceToYCenter - contentOffset.y
+                    spaceToYCenter -= spaceToYCenter - contentOffset.y
+                }
+            } else if contentHeight.rounded(.toNearestOrAwayFromZero) > bounds.height {
+                if contentOffset.y == 0 {
+                    y = contentOffset.y
+                } else if contentOffset.y + bounds.height + 0.5 >= contentHeight.rounded(.toNearestOrAwayFromZero) {
+                    y += spaceToYCenter
+                }
             }
         } else {
-            y = max((bounds.height - contentSize.height) * 0.5, 0) + contentOffset.y
+            y = max((bounds.height - contentSize.height) * 0.5, 0) //+ contentOffset.y
             spaceToYCenter = 0
         }
         
@@ -134,29 +155,72 @@ class ImageScrollView: UIScrollView, UIScrollViewDelegate {
     }
     
     func setCurretMaxMinZoomScale() {
-        let boundsSize = bounds.size
-        let imageSize = imageZoomView.bounds.size
-
-        let xScale = boundsSize.width / imageSize.width
-        let yScale = boundsSize.height / imageSize.height
         
-        let minScale = min(xScale, yScale)
+        let w = originImageW / aspectWidth
+        let h = originImageH / aspectHeight
+        let sidePiece = min(w, h)
         
-        var maxScale: CGFloat = 1.0
+        let sideW: CGFloat = sidePiece * aspectWidth
+        let sideH: CGFloat = sidePiece * aspectHeight
         
-        if minScale < 0.1 {
-            maxScale = 0.3
+        print("sideW: \(sideW) - sideH: \(sideH)")
+        var scale = 0.0
+        
+        if aspectWidth > aspectHeight && originImageW < originImageH { // гига-вертикальное 2:1
+            print("1")
+            if sideW > sideH {
+                scale = bounds.width / sideW
+            } else if sideH > sideW {
+                scale = bounds.height / sideH
+            } else {
+                print("square 1")
+                scale = bounds.height / sideH
+            }
+        } else if aspectWidth < aspectHeight && originImageW > originImageH { // гига-горизонтальное 1:2
+            print("2")
+            if sideW > sideH {
+                scale = bounds.width / sideW
+            } else if sideH > sideW {
+                scale = bounds.height / sideH
+            } else {
+                print("square 2")
+                scale = bounds.height / sideH
+            }
+        } else if aspectWidth > aspectHeight && originImageW > originImageH { // горизонтальное 2:1
+            print("3")
+            if sideW > sideH {
+                scale = (bounds.width) / sideW
+            } else if sideH > sideW {
+                scale = (bounds.height) / sideH
+            } else {
+                print("square 3")
+                scale = (bounds.height) / sideH
+            }
+        } else if aspectWidth < aspectHeight && originImageW < originImageH { // вертикальное 1:2
+            print("4")
+            if sideW < sideH {
+                scale = (bounds.width) / sideW
+            } else if sideH < sideW {
+                scale = (bounds.height) / sideH
+            } else {
+                print("square 4")
+                scale = (bounds.height) / sideH
+            }
+        } else {
+            print("5")
+            if sideW < sideH {
+                scale = (bounds.width + spaceX) / sideW
+            } else if sideH < sideW {
+                scale = (bounds.height + spaceY) / sideH
+            } else {
+                print("square 5")
+                scale = (bounds.height + spaceY) / sideH
+            }
         }
-        if minScale >= 0.1 && minScale < 0.5 {
-            maxScale = 0.7
-        }
-        if minScale >= 0.5 {
-            maxScale = max(1.0, minScale)
-        }
+        print("scale: \(scale)")
         
-        minimumZoomScale = minScale - 0.01
-        maximumZoomScale = maxScale
-        print("Scale: \(minScale) - \(maxScale)")
+        minimumZoomScale = scale
+        maximumZoomScale = 3
     }
     
     func centerImage() {
@@ -174,7 +238,6 @@ class ImageScrollView: UIScrollView, UIScrollViewDelegate {
         } else {
             frameToCenter.origin.y = 0
         }
-        print("frameToCenter: \(frameToCenter)")
         imageZoomView.frame = frameToCenter
     
         updateGrid()
